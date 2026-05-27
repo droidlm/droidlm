@@ -18,8 +18,8 @@ val hasMatchingGoogleServicesConfig = googleServicesText != null && listOf(baseA
 if (googleServicesText != null && !hasMatchingGoogleServicesConfig) {
     logger.warn("Ignoring app/google-services.json because it does not match $baseApplicationId or $debugApplicationId.")
 }
-val baseVersionCode = 29
-val baseVersionName = "0.1.28"
+val baseVersionCode = 30
+val baseVersionName = "0.1.29"
 
 val releaseStoreFile = System.getenv("DROIDLM_RELEASE_STORE_FILE")
 val releaseStorePassword = System.getenv("DROIDLM_RELEASE_STORE_PASSWORD")

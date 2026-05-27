@@ -56,7 +56,7 @@ val unpackSherpaParakeetModel by tasks.registering(Sync::class) {
 assetPack {
     packName.set("sherpa_parakeet")
     dynamicDelivery {
-        deliveryType.set("install-time")
+        deliveryType.set("fast-follow")
     }
 }
 
