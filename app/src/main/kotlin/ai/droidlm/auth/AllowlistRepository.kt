@@ -89,6 +89,12 @@ class AllowlistRepository(
         when (val result = relayClient.checkAllowlist(endpoint, forceRefresh)) {
             is RelayCallResult.Success -> applyResult(user.email, result.value)
             is RelayCallResult.Failure -> {
+                if (!forceRefresh && result.shouldRetryWithFreshToken()) {
+                    logs.log(ActionLogType.ACTION_RESULT, "Refreshing signed-in access after allowlist auth failure", result.errorCode)
+                    authRepository.reloadCurrentUser()
+                    evaluate(authRepository.authState.value, forceRefresh = true)
+                    return
+                }
                 _accessState.value = AllowlistState(
                     email = user.email,
                     message = result.message.ifBlank { "Could not verify allowlist access." },
@@ -97,6 +103,14 @@ class AllowlistRepository(
                 logs.log(ActionLogType.ERROR, "Allowlist check failed: ${result.message}", result.errorCode)
             }
         }
+    }
+
+    private fun RelayCallResult.Failure.shouldRetryWithFreshToken(): Boolean {
+        val code = errorCode.orEmpty()
+        return code == "HTTP_401" ||
+            code == "HTTP_403" ||
+            code.startsWith("AUTH_TOKEN") ||
+            code == "AUTH_SESSION_EXPIRED"
     }
 
     private fun applyResult(userEmail: String?, response: AllowlistCheckResponse) {

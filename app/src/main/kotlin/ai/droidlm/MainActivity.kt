@@ -269,7 +269,6 @@ private fun DroidLmScreen(viewModel: DroidLmViewModel) {
                         onSignInWithEmail = viewModel::signInWithEmail,
                         onCreateAccountWithEmail = viewModel::createAccountWithEmail,
                         onSendPasswordReset = viewModel::sendPasswordReset,
-                        onRefreshAccess = viewModel::refreshAllowlistAccess,
                         onDone = viewModel::completeOnboarding,
                         onOpenSettings = {
                             viewModel.completeOnboarding()
@@ -301,7 +300,6 @@ private fun DroidLmScreen(viewModel: DroidLmViewModel) {
                         onSignInWithEmail = viewModel::signInWithEmail,
                         onCreateAccountWithEmail = viewModel::createAccountWithEmail,
                         onSendPasswordReset = viewModel::sendPasswordReset,
-                        onRefreshAccess = viewModel::refreshAllowlistAccess,
                         onSignOut = viewModel::signOut,
                     )
                 }
@@ -432,7 +430,6 @@ private fun OnboardingPage(
     onSignInWithEmail: (String, String) -> Unit,
     onCreateAccountWithEmail: (String, String) -> Unit,
     onSendPasswordReset: (String) -> Unit,
-    onRefreshAccess: () -> Unit,
     onDone: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
@@ -455,7 +452,6 @@ private fun OnboardingPage(
             onSignInWithEmail = onSignInWithEmail,
             onCreateAccountWithEmail = onCreateAccountWithEmail,
             onSendPasswordReset = onSendPasswordReset,
-            onRefreshAccess = onRefreshAccess,
         )
         SetupStatusCard(
             accessibilityEnabled = accessibilityEnabled,
@@ -525,7 +521,6 @@ private fun SettingsPage(
     onSignInWithEmail: (String, String) -> Unit,
     onCreateAccountWithEmail: (String, String) -> Unit,
     onSendPasswordReset: (String) -> Unit,
-    onRefreshAccess: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     var showPlannerSetupDialog by remember { mutableStateOf(false) }
@@ -541,7 +536,6 @@ private fun SettingsPage(
             onSignInWithEmail = onSignInWithEmail,
             onCreateAccountWithEmail = onCreateAccountWithEmail,
             onSendPasswordReset = onSendPasswordReset,
-            onRefreshAccess = onRefreshAccess,
             onSignOut = onSignOut
         )
         SetupStatusSection(
@@ -608,7 +602,6 @@ private fun AccountCard(
     onSignInWithEmail: (String, String) -> Unit,
     onCreateAccountWithEmail: (String, String) -> Unit,
     onSendPasswordReset: (String) -> Unit,
-    onRefreshAccess: () -> Unit,
     onSignOut: (() -> Unit)? = null
 ) {
     var showEmailDialog by remember { mutableStateOf(false) }
@@ -625,7 +618,6 @@ private fun AccountCard(
             onSignOut?.let {
                 OutlinedButton(onClick = it, enabled = !authState.loading) { Text("Sign out") }
             }
-            OutlinedButton(onClick = onRefreshAccess, enabled = !authState.loading && !allowlistState.checking) { Text("Refresh access") }
         } else {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(

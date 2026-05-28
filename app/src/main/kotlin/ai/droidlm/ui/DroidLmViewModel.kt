@@ -242,8 +242,6 @@ class DroidLmViewModel(
     }
 
     fun signOut() = deps.authRepository.signOut()
-    fun refreshAllowlistAccess() = deps.allowlistRepository.refresh()
-
 
     fun cancelCurrentTask() {
         deps.executor.cancelActive()
@@ -483,7 +481,7 @@ class DroidLmViewModel(
         !auth.signedIn -> "Sign in before uploading debug logs." to "AUTH_TOKEN_MISSING"
         auth.user?.emailVerified == false -> "Verify your email address before uploading debug logs." to "AUTH_EMAIL_UNVERIFIED"
         allowlist.checking -> "DroidLM access is still being verified. Try again in a moment." to "ALLOWLIST_CHECKING"
-        !allowlist.allowed -> (allowlist.message ?: "Refresh access before uploading debug logs.") to (allowlist.errorCode ?: "AUTH_NOT_ALLOWLISTED")
+        !allowlist.allowed -> (allowlist.message ?: "DroidLM is still verifying access. Try again in a moment.") to (allowlist.errorCode ?: "AUTH_NOT_ALLOWLISTED")
         else -> null
     }
 
