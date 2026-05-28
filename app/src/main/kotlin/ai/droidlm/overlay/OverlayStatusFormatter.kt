@@ -34,7 +34,7 @@ object OverlayStatusFormatter {
     fun accessibilitySetupLabel(
         serviceName: String = "DroidLM Device Control",
         settingsOpened: Boolean = false
-    ): String = "Enable Accessibility settings to unblock actions"
+    ): String = "Turn on Accessibility to control apps"
 
     fun microphonePermissionLabel(): String = "Enable microphone permission to record"
 
@@ -54,7 +54,7 @@ object OverlayStatusFormatter {
         val lines = mutableListOf<String>()
         plan.summary.takeIf { it.isNotBlank() }?.let(lines::add)
         lines += buildString {
-            append("Risk: ")
+            append("Safety: ")
             append(plan.riskLevel.ifBlank { "UNKNOWN" })
             if (plan.requiresConfirmation) append("; confirmation required")
         }
@@ -67,15 +67,15 @@ object OverlayStatusFormatter {
 
     fun confirmationDetails(pending: PendingConfirmation, maxChars: Int = 1200): String {
         val lines = mutableListOf<String>()
-        pending.transcript.takeIf { it.isNotBlank() }?.let { lines += "Transcript: $it" }
-        pending.actionLabel.takeIf { it.isNotBlank() }?.let { lines += "Action: $it" }
-        pending.reason.takeIf { it.isNotBlank() }?.let { lines += "Reason: $it" }
+        pending.transcript.takeIf { it.isNotBlank() }?.let { lines += "You said: $it" }
+        pending.actionLabel.takeIf { it.isNotBlank() }?.let { lines += "DroidLM wants to: $it" }
+        pending.reason.takeIf { it.isNotBlank() }?.let { lines += "Why: $it" }
         pending.prompt.takeIf { it.isNotBlank() }?.let(lines::add)
         return lines.joinToString("\n").take(maxChars)
     }
 
     private fun compactResult(result: String): String = when {
-        result.contains("OpenAI API key", ignoreCase = true) -> "OpenAI key needed"
+        result.contains("OpenAI API key", ignoreCase = true) -> "Planning key needed"
         else -> result.take(40)
     }
 

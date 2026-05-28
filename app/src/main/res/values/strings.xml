@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">DroidLM</string>
     <string name="accessibility_service_label">DroidLM Device Control</string>
-    <string name="accessibility_service_description">Allows DroidLM to observe and control this user-owned device for assistant commands. DroidLM uses this only while visible features are enabled and never bypasses Android security prompts.</string>
+    <string name="accessibility_service_description">Lets DroidLM read the screen and tap controls for commands you request. DroidLM never bypasses Android security prompts.</string>
     <string name="notification_channel_listening">DroidLM listening</string>
     <string name="notification_channel_tasks">DroidLM tasks</string>
 </resources>

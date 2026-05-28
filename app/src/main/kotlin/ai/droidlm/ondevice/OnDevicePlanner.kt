@@ -129,10 +129,10 @@ class OnDevicePlanner(
             tempFile.delete()
             val request = Request.Builder().url(MODEL_URL).build()
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) throw IOException("Could not download the local Qwen3 model: HTTP ${response.code}")
-                val body = response.body ?: throw IOException("Could not download the local Qwen3 model: empty response body")
+                if (!response.isSuccessful) throw IOException("Could not download the local planning model: HTTP ${response.code}")
+                val body = response.body ?: throw IOException("Could not download the local planning model: empty response body")
                 val totalBytes = body.contentLength().takeIf { it > 0 } ?: MODEL_BYTES
-                _status.value = Status(Status.Phase.DOWNLOADING, "Downloading the local Qwen3 model...", 0L, totalBytes, 0f)
+                _status.value = Status(Status.Phase.DOWNLOADING, "Downloading the local planning model...", 0L, totalBytes, 0f)
                 val digest = MessageDigest.getInstance("SHA-256")
                 body.byteStream().use { input ->
                     tempFile.outputStream().use { output ->
@@ -144,7 +144,7 @@ class OnDevicePlanner(
                             onProgress = { progress ->
                                 _status.value = Status(
                                     phase = Status.Phase.DOWNLOADING,
-                                    message = "Downloading the local Qwen3 model...",
+                                    message = "Downloading the local planning model...",
                                     downloadedBytes = progress.downloadedBytes,
                                     totalBytes = progress.totalBytes,
                                     progressFraction = progress.progressFraction
@@ -156,15 +156,15 @@ class OnDevicePlanner(
                 val actualSha = digest.digest().joinToString(separator = "") { byte -> "%02x".format(Locale.US, byte) }
                 if (!actualSha.equals(MODEL_SHA256, ignoreCase = true)) {
                     tempFile.delete()
-                    _status.value = Status(Status.Phase.ERROR, "Downloaded Qwen3 model checksum mismatch")
-                    throw IOException("Downloaded Qwen3 model checksum mismatch")
+                    _status.value = Status(Status.Phase.ERROR, "Downloaded local planning model checksum mismatch")
+                    throw IOException("Downloaded local planning model checksum mismatch")
                 }
             }
             if (modelFile.exists()) modelFile.delete()
-            require(tempFile.renameTo(modelFile)) { "Could not move the downloaded Qwen3 model into place" }
+            require(tempFile.renameTo(modelFile)) { "Could not move the downloaded local planning model into place" }
             markerFile.writeText(MODEL_SHA256)
             modelLoaded = false
-            _status.value = Status(Status.Phase.DOWNLOADED, "Qwen3 downloaded. Preparing the local planner...")
+            _status.value = Status(Status.Phase.DOWNLOADED, "Local planning model downloaded. Preparing...")
         }
         ensureReady()
     }
@@ -275,11 +275,11 @@ class OnDevicePlanner(
         val current = status.value
         return when (current.phase) {
             Status.Phase.UNSUPPORTED -> current.message
-            Status.Phase.NOT_DOWNLOADED -> "Privacy mode needs the on-device Qwen3 planner downloaded first."
-            Status.Phase.DOWNLOADING -> "Privacy mode is downloading the on-device Qwen3 planner. Keep DroidLM open until it finishes."
+            Status.Phase.NOT_DOWNLOADED -> "Privacy mode needs the local planning model downloaded first."
+            Status.Phase.DOWNLOADING -> "Privacy mode is downloading the local planning model. Keep DroidLM open until it finishes."
             Status.Phase.DOWNLOADED,
-            Status.Phase.LOADING -> "Privacy mode is preparing the on-device Qwen3 planner. Try again in a moment."
-            Status.Phase.READY -> "The on-device Qwen3 planner is ready."
+            Status.Phase.LOADING -> "Privacy mode is preparing local planning. Try again in a moment."
+            Status.Phase.READY -> "Local planning is ready."
             Status.Phase.ERROR -> current.message
         }
     }
@@ -303,18 +303,18 @@ class OnDevicePlanner(
             }
             if (!modelFile.isFile || !markerFile.isFile || markerFile.readText().trim() != MODEL_SHA256) {
                 modelLoaded = false
-                _status.value = Status(Status.Phase.NOT_DOWNLOADED, "Download the on-device Qwen3 planner to use privacy mode")
-                throw IOException("The on-device Qwen3 planner is not downloaded yet")
+                _status.value = Status(Status.Phase.NOT_DOWNLOADED, "Download the local planning model to use privacy mode")
+                throw IOException("The local planning model is not downloaded yet")
             }
             if (modelLoaded) {
-                _status.value = Status(Status.Phase.READY, "On-device Qwen3 planner ready")
+                _status.value = Status(Status.Phase.READY, "Local planning ready")
                 return
             }
-            _status.value = Status(Status.Phase.LOADING, "Preparing the on-device Qwen3 planner")
+            _status.value = Status(Status.Phase.LOADING, "Preparing local planning")
             engine.ensureModelLoaded(modelFile.absolutePath, LOCAL_CONTEXT_SIZE)
             modelLoaded = true
-            _status.value = Status(Status.Phase.READY, "On-device Qwen3 planner ready")
-            logs.log(ActionLogType.ACTION_RESULT, "On-device Qwen3 planner loaded", "contextSize=$LOCAL_CONTEXT_SIZE")
+            _status.value = Status(Status.Phase.READY, "Local planning ready")
+            logs.log(ActionLogType.ACTION_RESULT, "Local planning model loaded", "contextSize=$LOCAL_CONTEXT_SIZE")
         }
     }
 
@@ -421,9 +421,9 @@ class OnDevicePlanner(
         val unsupported = unsupportedStatus()
         if (unsupported != null) return unsupported
         if (modelFile.isFile && markerFile.isFile && markerFile.readText().trim() == MODEL_SHA256) {
-            return Status(Status.Phase.DOWNLOADED, "Qwen3 downloaded. Enable privacy mode to prepare it.")
+            return Status(Status.Phase.DOWNLOADED, "Local planning model downloaded. Enable privacy mode to prepare it.")
         }
-        return Status(Status.Phase.NOT_DOWNLOADED, "Download the on-device Qwen3 planner to use privacy mode")
+        return Status(Status.Phase.NOT_DOWNLOADED, "Download the local planning model to use privacy mode")
     }
 
     private fun unsupportedStatus(): Status? {
@@ -444,12 +444,12 @@ class OnDevicePlanner(
     private fun requireDownloadStorage() {
         val availableBytes = StatFs(context.filesDir.absolutePath).availableBytes
         if (availableBytes < MIN_FREE_STORAGE_BYTES) {
-            throw IOException("Privacy mode needs about 4.5 GB of free storage to download and prepare Qwen3.")
+            throw IOException("Privacy mode needs about 4.5 GB of free storage to download and prepare the local planning model.")
         }
     }
 
     private fun errorCodeFor(error: Throwable): String = when (error.message.orEmpty()) {
-        "The on-device Qwen3 planner is not downloaded yet" -> ERROR_MODEL_MISSING
+        "The local planning model is not downloaded yet" -> ERROR_MODEL_MISSING
         else -> when (status.value.phase) {
             Status.Phase.UNSUPPORTED -> ERROR_MODEL_UNSUPPORTED
             Status.Phase.NOT_DOWNLOADED, Status.Phase.DOWNLOADING -> ERROR_MODEL_MISSING

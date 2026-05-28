@@ -42,7 +42,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -63,7 +62,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -348,7 +346,7 @@ private fun DroidLmScreen(viewModel: DroidLmViewModel) {
                     }
                 }
 
-                item { ExecutionCard(execution.lastTranscript, execution.parsedAction, execution.status, execution.lastResult) }
+                item { ExecutionCard(execution.lastTranscript, execution.status, execution.lastResult) }
                 item {
                     MainControlRow(
                         listening = listening,
@@ -398,13 +396,13 @@ private fun MainControlRow(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         itemVerticalAlignment = Alignment.CenterVertically
     ) {
-        Button(onClick = onListeningToggle) { Text(if (listening) "Stop Listening" else "Start Listening") }
-        Button(onClick = onPushToTalk) { Text("Push to Talk") }
+        Button(onClick = onListeningToggle) { Text(if (listening) "Stop" else "Listen") }
+        Button(onClick = onPushToTalk) { Text("Talk") }
         Button(
             colors = ButtonDefaults.buttonColors(containerColor = DroidLmColors.Danger, contentColor = Color.White),
             onClick = onCancel
         ) { Text("Cancel") }
-        Button(onClick = onOverlayToggle) { Text(if (overlayRunning) "Stop Floating Controls" else "Start Floating Controls") }
+        Button(onClick = onOverlayToggle) { Text(if (overlayRunning) "Hide floating button" else "Show floating button") }
         OutlinedButton(onClick = onSettings) { Text(if (showingSettings) "Close Settings" else "Settings") }
     }
 }
@@ -439,13 +437,13 @@ private fun OnboardingPage(
         DroidCard {
             Text("Let's set up DroidLM", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 24.sp)
             Text(
-                "Complete the essentials once. DroidLM handles speech recognition automatically; advanced planning can use either OpenAI or the local privacy-mode planner.",
+                "Finish setup once, then use your voice to control apps.",
                 color = DroidLmColors.TextMuted
             )
         }
         AccountCard(
             title = "Account",
-            description = "Sign in once so DroidLM can identify your device session and keep onboarding secure.",
+            description = "Sign in to finish setup.",
             authState = authState,
             allowlistState = allowlistState,
             onSignInWithGoogle = onSignInWithGoogle,
@@ -464,11 +462,6 @@ private fun OnboardingPage(
             onOpenAiKey = if (settings.privacyModeEnabled) null else ({ showPlannerSetupDialog = true })
         )
 
-        DroidCard {
-            Text("Diagnostics", fontWeight = FontWeight.SemiBold)
-            ToggleRow("Debug logging", settings.debugLoggingEnabled, viewModel::updateDebugLogging)
-            Text("Optional, but useful for diagnosing voice, overlay, and automation issues. Exports are zipped for sharing.", color = DroidLmColors.TextMuted)
-        }
         DroidCard {
             val accountReady = authState.signedIn && allowlistState.allowed
             Button(onClick = onDone, enabled = accountReady) { Text("Start using DroidLM") }
@@ -529,7 +522,7 @@ private fun SettingsPage(
         Text("Settings", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 24.sp)
         AccountCard(
             title = "Account",
-            description = "DroidLM uses this account to identify you across setup and cloud-backed features.",
+            description = "Manage the account used for DroidLM access.",
             authState = authState,
             allowlistState = allowlistState,
             onSignInWithGoogle = onSignInWithGoogle,
@@ -663,9 +656,9 @@ private fun AccountStatus(authState: AuthState, allowlistState: AllowlistState) 
 private fun accountSetupHint(authState: AuthState, allowlistState: AllowlistState): String = when {
     !authState.signedIn -> "Sign in to continue."
     authState.user?.emailVerified == false -> "Verify your email address before using DroidLM."
-    allowlistState.checking -> "Checking allowlist access..."
+    allowlistState.checking -> "Checking access..."
     allowlistState.allowed -> "Access approved."
-    else -> allowlistState.message ?: "This account is not on the DroidLM allowlist."
+    else -> allowlistState.message ?: "This account does not have access yet."
 }
 
 
@@ -765,15 +758,20 @@ private fun SetupStatusSection(
         SetupStatusItem("Accessibility", accessibilityEnabled, onOpenAccessibility),
         SetupStatusItem("Microphone", micGranted, onRequestMicPermission),
         SetupStatusItem("Notifications", notificationGranted, onRequestNotificationPermission),
-        onOpenAiKey?.let { SetupStatusItem("API Key", settings.openAiApiKeyConfigured, it) }
+        onOpenAiKey?.let { SetupStatusItem("Planning key", settings.openAiApiKeyConfigured, it) }
     )
-    val enabledItems = items.filter { it.enabled }
     val missingItems = items.filterNot { it.enabled }
+    val visibleItems = missingItems + items.filter { it.enabled }
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Setup status", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 20.sp)
-        SetupStatusRow("Enabled", enabledItems)
-        SetupStatusRow("Missing", missingItems)
+        Text(
+            if (missingItems.isEmpty()) "DroidLM is ready." else "Finish these items to use DroidLM.",
+            color = DroidLmColors.TextMuted
+        )
+        visibleItems.forEach { item ->
+            SetupStatusActionRow(item)
+        }
     }
 }
 
@@ -784,30 +782,18 @@ private data class SetupStatusItem(
 )
 
 @Composable
-private fun SetupStatusRow(label: String, items: List<SetupStatusItem>) {
-    var expanded by rememberSaveable(label) { mutableStateOf(false) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("$label (${items.size})", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            OutlinedButton(onClick = { expanded = !expanded }) {
-                Text(if (expanded) "Hide" else "Show")
-            }
+private fun SetupStatusActionRow(item: SetupStatusItem) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(item.label, fontWeight = FontWeight.SemiBold)
+            Text(if (item.enabled) "Ready" else "Needs setup", color = DroidLmColors.TextMuted, fontSize = 13.sp)
         }
-        if (expanded) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (items.isEmpty()) {
-                    Text("None", color = DroidLmColors.TextMuted)
-                } else {
-                    items.forEach { item ->
-                        AssistChip(onClick = item.onClick, label = { Text(item.label) })
-                    }
-                }
-            }
+        if (!item.enabled) {
+            OutlinedButton(onClick = item.onClick) { Text("Set up") }
         }
     }
 }
@@ -871,9 +857,9 @@ private fun ConfirmationCard(
     onCancel: () -> Unit
 ) = DroidCard(container = DroidLmColors.WarningSurface) {
     Text("Confirmation required", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 20.sp)
-    Text("Transcript: $transcript")
-    Text("Action: $action")
-    Text("Reason: $reason")
+    Text("You said: $transcript")
+    Text("DroidLM wants to: $action")
+    Text("Why: $reason")
     if (prompt.isNotBlank()) Text(prompt, fontWeight = FontWeight.SemiBold)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Button(onClick = onConfirm) { Text("\u2713", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
@@ -894,10 +880,11 @@ private fun OpenAiKeyDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("OpenAI API key") },
+        title = { Text("Cloud planning key") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Status: ${if (settings.openAiApiKeyConfigured) "Configured" else "Not configured"}")
+                Text("Used for commands that need planning.", color = DroidLmColors.TextMuted)
                 plannerKeySetup?.let { Text(it.message, color = DroidLmColors.TextMuted) }
                 if (!settings.openAiApiKeyConfigured) {
                     OutlinedTextField(
@@ -915,9 +902,9 @@ private fun OpenAiKeyDialog(
                     onSave(apiKey)
                     apiKey = ""
                     onDismiss()
-                }) { Text("Save Key") }
+                }) { Text("Save key") }
             } else {
-                OutlinedButton(onClick = onClear) { Text("Clear Key") }
+                OutlinedButton(onClick = onClear) { Text("Clear key") }
             }
         },
         dismissButton = {
@@ -943,17 +930,18 @@ private fun PlannerSettingsCard(
     onCancel: () -> Unit
 ) = DroidCard(container = DroidLmColors.WarningSurface) {
     var apiKey by remember { mutableStateOf("") }
-    Text("OpenAI API key", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 20.sp)
+    Text("Cloud planning key", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 20.sp)
     Text("Status: ${if (settings.openAiApiKeyConfigured) "Configured" else "Not configured"}")
+    Text("Used for commands that need planning.", color = DroidLmColors.TextMuted)
     plannerKeySetup?.let { Text(it.message, color = DroidLmColors.TextMuted) }
     if (!settings.openAiApiKeyConfigured) {
         OutlinedTextField(value = apiKey, onValueChange = { apiKey = it }, modifier = Modifier.fillMaxWidth(), label = { Text("OpenAI API key") })
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(onClick = { onSave(apiKey); apiKey = "" }) { Text("Save Key") }
+            Button(onClick = { onSave(apiKey); apiKey = "" }) { Text("Save key") }
             OutlinedButton(onClick = onCancel) { Text("Cancel") }
         }
     } else {
-        OutlinedButton(onClick = onClear) { Text("Clear Key") }
+        OutlinedButton(onClick = onClear) { Text("Clear key") }
     }
 }
 
@@ -967,25 +955,25 @@ private fun PrivacyModelDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("On-device planner") },
+        title = { Text("Local planning") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Status: ${plannerStatusLabel(plannerStatus)}")
+                Text("Status: ${plannerStatusLabel(plannerStatus, includeModelName = true)}")
                 DownloadProgressDetails(
                     progressFraction = plannerStatus.progressFraction,
                     progressLabel = plannerStatus.progressLabel
                 )
                 plannerKeySetup?.message?.takeIf { it.isNotBlank() }?.let { Text(it, color = DroidLmColors.TextMuted) }
                 Text(
-                    "Privacy mode uses a local Qwen3 1.7B model on supported flagship phones. Download size is about 1.8 GB.",
+                    "This downloads a local planning model, about 1.8 GB.",
                     color = DroidLmColors.TextMuted
                 )
             }
         },
         confirmButton = {
             when {
-                plannerStatusShowsDownload(plannerStatus) -> Button(onClick = onDownload) { Text("Download Qwen3") }
-                plannerStatusCanPrepare(plannerStatus) -> Button(onClick = onPrepare) { Text("Prepare") }
+                plannerStatusShowsDownload(plannerStatus) -> Button(onClick = onDownload) { Text("Download model") }
+                plannerStatusCanPrepare(plannerStatus) -> Button(onClick = onPrepare) { Text("Prepare model") }
                 else -> Button(onClick = onDismiss) { Text("Close") }
             }
         },
@@ -1003,7 +991,7 @@ private fun PrivacyPlannerSettingsCard(
     onPrepare: () -> Unit,
     onDismiss: () -> Unit
 ) = DroidCard(container = DroidLmColors.WarningSurface) {
-    Text("On-device planner", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 20.sp)
+    Text("Local planning", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 20.sp)
     Text("Status: ${plannerStatusLabel(plannerStatus)}")
     DownloadProgressDetails(
         progressFraction = plannerStatus.progressFraction,
@@ -1011,19 +999,30 @@ private fun PrivacyPlannerSettingsCard(
     )
     plannerKeySetup?.let { Text(it.message, color = DroidLmColors.TextMuted) }
     Text(
-        "Privacy mode uses a local Qwen3 1.7B planner on supported flagship phones.",
+        "Privacy mode plans actions on this phone.",
         color = DroidLmColors.TextMuted
     )
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         when {
-            plannerStatusShowsDownload(plannerStatus) -> Button(onClick = onDownload) { Text("Download Qwen3") }
-            plannerStatusCanPrepare(plannerStatus) -> Button(onClick = onPrepare) { Text("Prepare") }
+            plannerStatusShowsDownload(plannerStatus) -> Button(onClick = onDownload) { Text("Download model") }
+            plannerStatusCanPrepare(plannerStatus) -> Button(onClick = onPrepare) { Text("Prepare model") }
         }
         OutlinedButton(onClick = onDismiss) { Text("Dismiss") }
     }
 }
 
-private fun plannerStatusLabel(status: OnDevicePlanner.Status): String = status.message
+private fun plannerStatusLabel(status: OnDevicePlanner.Status, includeModelName: Boolean = false): String {
+    if (includeModelName) return status.message
+    return when (status.phase) {
+        OnDevicePlanner.Status.Phase.UNSUPPORTED -> "Not available on this device"
+        OnDevicePlanner.Status.Phase.NOT_DOWNLOADED -> "Needs download"
+        OnDevicePlanner.Status.Phase.DOWNLOADING -> "Downloading"
+        OnDevicePlanner.Status.Phase.DOWNLOADED -> "Ready to prepare"
+        OnDevicePlanner.Status.Phase.LOADING -> "Preparing"
+        OnDevicePlanner.Status.Phase.READY -> "Ready"
+        OnDevicePlanner.Status.Phase.ERROR -> "Needs attention"
+    }
+}
 
 @Composable
 private fun DownloadProgressDetails(
@@ -1062,27 +1061,26 @@ private fun PlanPreviewCard(
     onReject: () -> Unit
 ) = DroidCard(container = DroidLmColors.SuccessSurface) {
     val plan = pendingPlan.plan
-    Text("Plan preview", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 20.sp)
-    Text("Transcript: ${pendingPlan.transcript}")
-    Text("Risk: ${plan.riskLevel}")
+    Text("Review action", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 20.sp)
+    Text("You said: ${pendingPlan.transcript}")
+    Text("Safety: ${plan.riskLevel}")
     Text(plan.summary, fontWeight = FontWeight.SemiBold)
     plan.steps.forEach { step ->
         val actionLabel = ActionUiFormatter.full(step.action, step.actionLabel, step.reason)
         Text("${step.index}. $actionLabel")
     }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Button(onClick = onAcceptOnce) { Text("Accept Once") }
-        if (plan.isSafe) Button(onClick = onAlwaysAcceptSafe) { Text("Always Accept Safe") }
+        Button(onClick = onAcceptOnce) { Text("Run once") }
+        if (plan.isSafe) Button(onClick = onAlwaysAcceptSafe) { Text("Always run low-risk actions") }
         OutlinedButton(onClick = onReject) { Text("Reject") }
     }
 }
 
 @Composable
-private fun ExecutionCard(transcript: String, action: String, status: String, result: String) = DroidCard {
-    Text("Execution", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 20.sp)
+private fun ExecutionCard(transcript: String, status: String, result: String) = DroidCard {
+    Text("Current task", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 20.sp)
     Text("Status: $status")
-    transcript.takeIf { it.isNotBlank() }?.let { Text("Last transcript: $it") }
-    action.takeIf { it.isNotBlank() }?.let { Text("Parsed action: $it") }
+    transcript.takeIf { it.isNotBlank() }?.let { Text("You said: $it") }
     result.takeIf { it.isNotBlank() }?.let { Text("Result: $it") }
 }
 
@@ -1110,15 +1108,15 @@ private fun AssistantSettingsSection(
     var debugIssueDescription by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Assistant settings", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 20.sp)
+        Text("Preferences", fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif, fontSize = 20.sp)
 
         Text("Privacy", fontWeight = FontWeight.SemiBold)
         ToggleRow("Privacy mode", settings.privacyModeEnabled, viewModel::updatePrivacyMode)
         Text(
-            "When enabled, DroidLM keeps advanced planning fully on-device with a local Qwen3 1.7B model on supported flagship phones.",
+            "Plan actions on this phone instead of using cloud planning. Requires a large download on supported devices.",
             color = DroidLmColors.TextMuted
         )
-        Text("Local planner: ${plannerStatusLabel(onDevicePlannerStatus)}", color = DroidLmColors.TextMuted)
+        Text("Local planning: ${plannerStatusLabel(onDevicePlannerStatus)}", color = DroidLmColors.TextMuted)
         DownloadProgressDetails(
             progressFraction = onDevicePlannerStatus.progressFraction,
             progressLabel = onDevicePlannerStatus.progressLabel,
@@ -1126,22 +1124,22 @@ private fun AssistantSettingsSection(
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (plannerStatusShowsDownload(onDevicePlannerStatus)) {
-                OutlinedButton(onClick = viewModel::downloadPrivacyModel) { Text("Download Qwen3") }
+                OutlinedButton(onClick = viewModel::downloadPrivacyModel) { Text("Download model") }
             }
             if (plannerStatusCanPrepare(onDevicePlannerStatus)) {
-                OutlinedButton(onClick = viewModel::preparePrivacyModel) { Text("Prepare") }
+                OutlinedButton(onClick = viewModel::preparePrivacyModel) { Text("Prepare model") }
             }
         }
 
-        Text("Diagnostics", fontWeight = FontWeight.SemiBold)
-        ToggleRow("Debug logging", settings.debugLoggingEnabled, viewModel::updateDebugLogging)
+        Text("Help & logs", fontWeight = FontWeight.SemiBold)
+        ToggleRow("Save troubleshooting logs", settings.debugLoggingEnabled, viewModel::updateDebugLogging)
         Text(
-            "When enabled, DroidLM keeps speech diagnostic events plus retained debug audio and screenshots.",
+            "Saves extra logs, audio, and screenshots to help diagnose problems.",
             color = DroidLmColors.TextMuted
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { showDebugShareDialog = true }) { Text("Upload") }
-            OutlinedButton(onClick = { saveDebugLogsLauncher.launch(viewModel.debugLogsExportFileName()) }) { Text("Save") }
+            OutlinedButton(onClick = { showDebugShareDialog = true }) { Text("Send logs") }
+            OutlinedButton(onClick = { saveDebugLogsLauncher.launch(viewModel.debugLogsExportFileName()) }) { Text("Export") }
             OutlinedButton(onClick = viewModel::clearDebugLogs) { Text("Clear") }
         }
         if (showDebugShareDialog) {
@@ -1151,7 +1149,7 @@ private fun AssistantSettingsSection(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            "Add any details that would help diagnose what happened. This description will be saved inside the uploaded zip.",
+                            "Add anything that would help explain what happened. This note is included with the logs.",
                             color = DroidLmColors.TextMuted
                         )
                         OutlinedTextField(
@@ -1176,7 +1174,7 @@ private fun AssistantSettingsSection(
                             showDebugShareDialog = false
                             debugIssueDescription = ""
                         }
-                    ) { Text("Upload logs") }
+                    ) { Text("Send logs") }
                 },
                 dismissButton = {
                     OutlinedButton(onClick = { showDebugShareDialog = false }) { Text("Cancel") }
@@ -1202,9 +1200,9 @@ private fun DebugBuildUpgradeSection(
     onAllowInstall: () -> Unit
 ) {
     val buttonLabel = when {
-        state.requiresInstallPermission -> "Allow Install"
+        state.requiresInstallPermission -> "Allow install"
         state.isBusy -> "Working..."
-        else -> "Upgrade to Latest Debug Build"
+        else -> "Install latest beta"
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(

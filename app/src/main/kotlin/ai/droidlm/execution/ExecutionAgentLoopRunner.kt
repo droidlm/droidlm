@@ -69,10 +69,10 @@ internal class ExecutionAgentLoopRunner(
         if (!privacyModeEnabled && apiKey.isBlank()) {
             plannerKeySetupRequest.value = PlannerKeySetupRequest(
                 kind = PlannerSetupKind.OPENAI_API_KEY,
-                message = "Agent mode requires an OpenAI API key saved on this device.",
+                message = "This command needs a cloud planning key saved on this device.",
                 retryTranscript = goal
             )
-            return finish(ActionResult.fail("OpenAI API key is required for agent mode", "OPENAI_API_KEY_MISSING"))
+            return finish(ActionResult.fail("Cloud planning needs a planning key", "OPENAI_API_KEY_MISSING"))
         }
 
         val startedAt = System.currentTimeMillis()

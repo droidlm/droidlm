@@ -45,14 +45,14 @@ class OverlayStatusFormatterTest {
 
     @Test fun accessibilitySetupGivesActionableSteps() {
         assertEquals(
-            "Enable Accessibility settings to unblock actions",
+            "Turn on Accessibility to control apps",
             OverlayStatusFormatter.accessibilitySetupLabel()
         )
     }
 
     @Test fun accessibilitySetupAfterOpeningSettingsKeepsMessageShort() {
         assertEquals(
-            "Enable Accessibility settings to unblock actions",
+            "Turn on Accessibility to control apps",
             OverlayStatusFormatter.accessibilitySetupLabel(settingsOpened = true)
         )
     }
@@ -81,7 +81,7 @@ class OverlayStatusFormatterTest {
             executionStatus = "Error",
             lastResult = "OpenAI API key is required for GPT planning"
         )
-        assertEquals("OpenAI key needed", label)
+        assertEquals("Planning key needed", label)
     }
 
     @Test fun compactPlanUsesSingleLineActionChain() {
@@ -141,7 +141,7 @@ class OverlayStatusFormatterTest {
         )
 
         assertEquals(
-            "Open Sheets and type a value\nRisk: MEDIUM; confirmation required\n1. Open Google Sheets\n2. Type text",
+            "Open Sheets and type a value\nSafety: MEDIUM; confirmation required\n1. Open Google Sheets\n2. Type text",
             OverlayStatusFormatter.fullPlan(plan)
         )
     }
@@ -156,7 +156,7 @@ class OverlayStatusFormatterTest {
         )
 
         assertEquals(
-            "Transcript: open google docs\nAction: Open Google Docs in Play Store\nReason: The app is not installed.",
+            "You said: open google docs\nDroidLM wants to: Open Google Docs in Play Store\nWhy: The app is not installed.",
             OverlayStatusFormatter.confirmationDetails(pending)
         )
     }
@@ -171,7 +171,7 @@ class OverlayStatusFormatterTest {
         )
 
         assertEquals(
-            "Transcript: open google docs\nAction: Open Google Docs in Play Store\nReason: The app is not installed.\nOpen Play Store for Google Docs?",
+            "You said: open google docs\nDroidLM wants to: Open Google Docs in Play Store\nWhy: The app is not installed.\nOpen Play Store for Google Docs?",
             OverlayStatusFormatter.confirmationDetails(pending)
         )
     }

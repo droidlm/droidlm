@@ -215,7 +215,7 @@ class DroidLmViewModel(
     fun saveOpenAiApiKey(apiKey: String) {
         viewModelScope.launch {
             deps.settingsRepository.saveOpenAiApiKey(apiKey)
-            deps.actionLogRepository.log(ActionLogType.ACTION_RESULT, "OpenAI API key saved on this device")
+            deps.actionLogRepository.log(ActionLogType.ACTION_RESULT, "Cloud planning key saved on this device")
             deps.executor.retryPlannerKeySetupRequest()
         }
     }
@@ -223,7 +223,7 @@ class DroidLmViewModel(
     fun clearOpenAiApiKey() {
         viewModelScope.launch {
             deps.settingsRepository.clearOpenAiApiKey()
-            deps.actionLogRepository.log(ActionLogType.ACTION_RESULT, "OpenAI API key cleared from this device")
+            deps.actionLogRepository.log(ActionLogType.ACTION_RESULT, "Cloud planning key cleared from this device")
         }
     }
 
@@ -301,10 +301,10 @@ class DroidLmViewModel(
         runCatching {
             deps.onDevicePlanner.downloadModel()
         }.onSuccess {
-            deps.actionLogRepository.log(ActionLogType.ACTION_RESULT, "Downloaded the on-device Qwen3 planner")
+            deps.actionLogRepository.log(ActionLogType.ACTION_RESULT, "Downloaded the local planning model")
             deps.executor.retryPlannerKeySetupRequest()
         }.onFailure { error ->
-            deps.actionLogRepository.log(ActionLogType.ERROR, "Could not download the on-device Qwen3 planner: ${error.message}")
+            deps.actionLogRepository.log(ActionLogType.ERROR, "Could not download the local planning model: ${error.message}")
         }
     }
     fun preparePrivacyModel() {
@@ -317,13 +317,13 @@ class DroidLmViewModel(
             deps.debugLogStore.recordEvent("setting_enabled", mapOf("source" to "settings_ui"))
             deps.actionLogRepository.log(
                 ActionLogType.ACTION_RESULT,
-                "Debug logging enabled",
-                "Exports may include spoken text, screenshots, retained audio, and speech-recognition state."
+                "Troubleshooting logs enabled",
+                "Exports may include spoken text, screenshots, audio, and speech-recognition state."
             )
         } else {
             deps.speechDiagnosticsLogger.clear()
             deps.debugLogStore.clear()
-            deps.actionLogRepository.log(ActionLogType.ACTION_RESULT, "Debug logging disabled and cleared")
+            deps.actionLogRepository.log(ActionLogType.ACTION_RESULT, "Troubleshooting logs disabled and cleared")
         }
     }
 
@@ -543,7 +543,7 @@ class DroidLmViewModel(
 
     fun completeOnboarding() = viewModelScope.launch {
         if (!deps.authRepository.authState.value.signedIn || !deps.allowlistRepository.accessState.value.allowed) {
-            deps.actionLogRepository.log(ActionLogType.ERROR, "Onboarding requires allowlisted sign-in before completion")
+            deps.actionLogRepository.log(ActionLogType.ERROR, "Onboarding requires approved sign-in before completion")
             return@launch
         }
         deps.settingsRepository.updateOnboardingCompletedVersion(ONBOARDING_VERSION)

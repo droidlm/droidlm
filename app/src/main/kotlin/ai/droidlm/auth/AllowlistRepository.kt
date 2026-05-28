@@ -97,7 +97,7 @@ class AllowlistRepository(
                 }
                 _accessState.value = AllowlistState(
                     email = user.email,
-                    message = result.message.ifBlank { "Could not verify allowlist access." },
+                    message = result.message.ifBlank { "Could not verify access." },
                     errorCode = result.errorCode
                 )
                 logs.log(ActionLogType.ERROR, "Allowlist check failed: ${result.message}", result.errorCode)
@@ -117,7 +117,7 @@ class AllowlistRepository(
         _accessState.value = AllowlistState(
             allowed = response.allowed,
             email = response.email ?: userEmail,
-            message = if (response.allowed) "Access approved." else response.message ?: "This account is not on the DroidLM allowlist.",
+            message = if (response.allowed) "Access approved." else response.message ?: "This account does not have access yet.",
             errorCode = response.errorCode
         )
         logs.log(

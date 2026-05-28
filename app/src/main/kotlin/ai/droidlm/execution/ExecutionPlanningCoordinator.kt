@@ -106,7 +106,7 @@ internal class ExecutionPlanningCoordinator(
         if (apiKey.isBlank()) {
             plannerKeySetupRequest.value = PlannerKeySetupRequest(
                 kind = PlannerSetupKind.OPENAI_API_KEY,
-                message = "This command needs a plan. Add an OpenAI API key in DroidLM to review and approve it on this device.",
+                message = "This command needs planning. Add a cloud planning key to review and approve it on this device.",
                 retryTranscript = stripped
             )
             diagnostics.record(diagnosticSessionId, "planner_key_missing")
@@ -122,7 +122,7 @@ internal class ExecutionPlanningCoordinator(
                 )
             )
             logs.log(ActionLogType.ERROR, "Planner OpenAI key is missing or unreadable", "OPENAI_API_KEY_MISSING")
-            return finish(ActionResult.fail("This command needs a plan. Add an OpenAI API key in DroidLM to review it.", "OPENAI_API_KEY_MISSING"))
+            return finish(ActionResult.fail("This command needs planning. Add a cloud planning key to review it.", "OPENAI_API_KEY_MISSING"))
         }
         val portalStateStartedAt = System.currentTimeMillis()
         val stateResult = runCatching { portalController.getState() }
@@ -473,10 +473,10 @@ internal class ExecutionPlanningCoordinator(
                 if (apiKey.isBlank()) {
                     plannerKeySetupRequest.value = PlannerKeySetupRequest(
                         kind = PlannerSetupKind.OPENAI_API_KEY,
-                        message = "GPT planning requires an OpenAI API key saved on this device.",
+                        message = "Cloud planning needs a planning key saved on this device.",
                         retryTranscript = goal
                     )
-                    return finish(ActionResult.fail("OpenAI API key is required for GPT planning", "OPENAI_API_KEY_MISSING"))
+                    return finish(ActionResult.fail("Cloud planning needs a planning key", "OPENAI_API_KEY_MISSING"))
                 }
                 openAiClient.planActionWithMetadata(apiKey, settings.openAiModel, request)
             }
